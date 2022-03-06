@@ -152,18 +152,22 @@ body {
                 <input type="range" min="1" max="10" step="1" id="frequency" />
             </li>
             <li>
-                <label for="k_noise">k_noise</label>
+                <label for="k_noise">Sample noise</label>
                 <input type="range" min="0" max="1" step="0.01" id="k_noise" />
             </li>
             <li>
-                <label for="k_alpha">k_alpha</label>
+                <label for="k_alpha">Noise spread</label>
                 <input type="range" min="0.01" max="1" step="0.01" id="k_alpha" />
             </li>
+            <li>
+                <label for="lut_steps">Color steps</label>
+                <input type="range" min="1" max="9" step="1" id="lut_steps" />
+            </li>
             <li class="no_label">
-                <canvas id="ramp"></canvas>
+                <canvas id="ramp" data-colors="#1d3557,#000000,#e63946"></canvas>
                 <ul id="lut_list">
-                    <li><canvas data-colors="#0000ff,#000000,#ff0000"></canvas></li>
-                    <li><canvas data-colors="#e63946,#f1faee,#a8dadc,#457b9d,#1d3557"></canvas></li>
+                    <li><canvas data-colors="#1d3557,#000000,#e63946"></canvas></li>
+                    <li><canvas data-colors="#1d3557,#457b9d,#a8dadc,#f1faee,#e63946"></canvas></li>
                     <li><canvas data-colors="#8ecae6,#219ebc,#023047,#ffb703,#fb8500"></canvas></li>
                     <li><canvas data-colors="#ffcdb2,#ffb4a2,#e5989b,#b5838d,#6d6875"></canvas></li>
                     <li><canvas data-colors="#264653,#2a9d8f,#e9c46a,#f4a261,#e76f51"></canvas></li>

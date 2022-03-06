@@ -80,6 +80,7 @@ async function setup() {
     ctx.scale(1, -1)
 
     const scene = {
+        lut_steps: 5,
         rp_hover: false,
         bounds: new Float32Array(8),
     }
@@ -157,24 +158,46 @@ async function setup() {
     }
 
     const ramp_ctx = ramp_canvas.getContext('2d')
-    const lut1 = new LUT(['#0000ff', '#000000', '#ff0000'])
-    lut1.draw(ramp_ctx)
+    const lut1 = new LUT(ramp_canvas.dataset.colors.split(','))
+    scene.lut_steps === 1 ? lut1.draw(ramp_ctx) : lut1.drawDiscrete(ramp_ctx, scene.lut_steps)
 
     const $lut_list = document.getElementById('lut_list')
     for (const $li of $lut_list.children) {
         const $canvas = $li.getElementsByTagName('canvas')[0]
-        const lut_ctx = $canvas.getContext('2d')
-        const lut = new LUT($canvas.dataset.colors.split(','))
         $canvas.width = 256
         $canvas.height = 20
-        lut.draw(lut_ctx)
         $canvas.parentElement.addEventListener('click', () => {
             setColorLUT($canvas)
-            lut.draw(ramp_ctx)
+            const lut = new LUT($canvas.dataset.colors.split(','))
+            scene.lut_steps === 1 ? lut.draw(ramp_ctx) : lut.drawDiscrete(ramp_ctx, scene.lut_steps)
+            ramp_canvas.dataset.colors = $canvas.dataset.colors
         })
     }
 
+    function redraw_luts() {
+        for (const $li of $lut_list.children) {
+            const $canvas = $li.getElementsByTagName('canvas')[0]
+            const lut_ctx = $canvas.getContext('2d')
+            const lut = new LUT($canvas.dataset.colors.split(','))
+            scene.lut_steps === 1 ? lut.draw(lut_ctx) : lut.drawDiscrete(lut_ctx, scene.lut_steps)
+        }
+    }
+
+    redraw_luts()
     setColorLUT(ramp_canvas)
+
+    /** @type {HTMLInputElement} */
+    const $lut_steps = document.getElementById('lut_steps')
+    if ($lut_steps) {
+        $lut_steps.value = scene.lut_steps.toString()
+        $lut_steps.addEventListener('input', () => {
+            scene.lut_steps = +$lut_steps.value
+            const lut = new LUT(ramp_canvas.dataset.colors.split(','))
+            scene.lut_steps === 1 ? lut.draw(ramp_ctx) : lut.drawDiscrete(ramp_ctx, scene.lut_steps)
+            redraw_luts()
+            setColorLUT(ramp_canvas)
+        })
+    }
 
     const vb = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, vb)
