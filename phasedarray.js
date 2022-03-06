@@ -9,12 +9,12 @@ const RP = {
     [RP_TYPE_CARDIOID]: (theta, dir) => Math.cos(dir) * (1 + Math.sin(theta)) + Math.sin(dir) * (1 + Math.cos(theta)),
 }
 
-
 /**
  * 
  * @param {CanvasRenderingContext2D} ctx 
  */
-function rp_draw(ctx, scene) {
+function rp_draw(ctx, scene, params) {
+    const pattern = RP[params.rp_type.value]
     ctx.globalAlpha = 1
     ctx.fillRect(-50, -50, 100, 100)
 
@@ -40,11 +40,11 @@ function rp_draw(ctx, scene) {
     ctx.globalAlpha = scene.rp_hover ? 1 : 0.5
     ctx.lineWidth = 2
     ctx.beginPath()
-    ctx.moveTo(25 * RP[scene.rp_type](0, scene.rp_direction), 0)
+    ctx.moveTo(25 * pattern(0, params.rp_direction.value), 0)
 
     for (let i = 1; i < 72; ++i) {
         const theta = Math.PI * 2 * i / 72
-        const r = 25 * RP[scene.rp_type](theta, scene.rp_direction)
+        const r = 25 * pattern(theta, params.rp_direction.value)
         const x = r * Math.cos(theta)
         const y = r * Math.sin(theta)
         ctx.lineTo(x, y)
@@ -69,7 +69,6 @@ async function setup() {
     ramp_canvas.width = 256
     ramp_canvas.height = 20
     ramp_canvas.id = 'ramp_canvas'
-    // document.body.append(ramp_canvas)
 
     const $lut = ramp_canvas.parentElement
     $lut.addEventListener('click', (e) => {
@@ -81,17 +80,7 @@ async function setup() {
     ctx.scale(1, -1)
 
     const scene = {
-        n_sources: 30,
-        rp_direction: 0,
         rp_hover: false,
-        rp_type: RP_TYPE_CARDIOID,
-        attenuation: 0,
-        phase_velocity: 100,
-        phase_delay: 0,
-        power: 500,
-        frequency: 1,
-        k_noise: 0.04,
-        k_alpha: 0.01,
         bounds: new Float32Array(8),
     }
 
@@ -109,8 +98,6 @@ async function setup() {
     }
 
     setBounds(canvas.width, canvas.height)
-
-    rp_draw(ctx, scene)
 
     const gl = canvas.getContext('webgl2')
     const program = gl.createProgram()
@@ -147,20 +134,10 @@ async function setup() {
     const programInfo = {
         program,
         uColorScaleSampler: gl.getUniformLocation(program, 'uColorScaleSampler', 1),
-        noise: gl.getUniformLocation(program, 'noise'),
         aVertexPosition: gl.getAttribLocation(program, 'aVertexPosition'),
         aTextureCoord: gl.getAttribLocation(program, 'aTextureCoord'),
         time: gl.getUniformLocation(program, 'time'),
         mouse: gl.getUniformLocation(program, 'mouse'),
-        n_sources: gl.getUniformLocation(program, 'n_sources'),
-        attenuation: gl.getUniformLocation(program, 'attenuation'),
-        phase_velocity: gl.getUniformLocation(program, 'phase_velocity'),
-        phase_delay: gl.getUniformLocation(program, 'phase_delay'),
-        power: gl.getUniformLocation(program, 'power'),
-        frequency: gl.getUniformLocation(program, 'frequency'),
-        k_noise: gl.getUniformLocation(program, 'k_noise'),
-        k_alpha: gl.getUniformLocation(program, 'k_alpha'),
-        rp_type: gl.getUniformLocation(program, 'rp_type'),
     }
 
     const lut_tex = gl.createTexture();
@@ -180,11 +157,8 @@ async function setup() {
     }
 
     const ramp_ctx = ramp_canvas.getContext('2d')
-    // const lut1 = new LUT(['#e63946', '#f1faee', '#a8dadc', '#457b9d', '#1d3557'])
     const lut1 = new LUT(['#0000ff', '#000000', '#ff0000'])
     lut1.draw(ramp_ctx)
-
-    // setColorLUT(ramp_canvas)
 
     const $lut_list = document.getElementById('lut_list')
     for (const $li of $lut_list.children) {
@@ -194,7 +168,6 @@ async function setup() {
         $canvas.width = 256
         $canvas.height = 20
         lut.draw(lut_ctx)
-        // console.log($canvas.dataset.colors.split(','))
         $canvas.parentElement.addEventListener('click', () => {
             setColorLUT($canvas)
             lut.draw(ramp_ctx)
@@ -260,21 +233,42 @@ async function setup() {
         $options.classList.toggle('hidden')
     })
 
-    function register_parameter(param_name) {
+    const params = {}
+
+    /**
+     * 
+     * @param {string} param_name 
+     * @param {*} gl_type 
+     * @param {number} value 
+     */
+    function create_param(param_name, gl_type, value) {
         /** @type {HTMLInputElement} */
-        const el = document.getElementById(param_name)
-        el.value = scene[param_name]
-        el.addEventListener('input', () => scene[param_name] = +el.value)
+        const element = document.getElementById(param_name)
+        if (element) {
+            element.value = value.toString()
+            element.addEventListener('input', () => params[param_name].value = +element.value)
+        }
+
+        params[param_name] = {
+            value,
+            location: gl.getUniformLocation(program, param_name),
+            element,
+            type: gl_type,
+        }
     }
 
-    register_parameter('n_sources')
-    register_parameter('attenuation')
-    register_parameter('phase_velocity')
-    register_parameter('phase_delay')
-    register_parameter('power')
-    register_parameter('frequency')
-    register_parameter('k_noise')
-    register_parameter('k_alpha')
+    create_param('n_sources', gl.uniform1i, 30)
+    create_param('attenuation', gl.uniform1f, 0)
+    create_param('phase_velocity', gl.uniform1f, 100)
+    create_param('phase_delay', gl.uniform1f, 0)
+    create_param('power', gl.uniform1f, 500)
+    create_param('frequency', gl.uniform1f, 2)
+    create_param('k_noise', gl.uniform1f, 0.04)
+    create_param('k_alpha', gl.uniform1f, 0.01)
+    create_param('rp_type', gl.uniform1f, RP_TYPE_CARDIOID)
+    create_param('rp_direction', gl.uniform1f, 0.0)
+
+    rp_draw(ctx, scene, params)
 
     // rp_canvas.addEventListener('wheel', (e) => {
     //     // scene.rp_direction -= e.deltaY
@@ -285,44 +279,34 @@ async function setup() {
     // })
     rp_canvas.addEventListener('mouseenter', (e) => {
         scene.rp_hover = true
-        rp_draw(ctx, scene)
+        rp_draw(ctx, scene, params)
     })
     rp_canvas.addEventListener('mouseleave', (e) => {
         scene.rp_hover = false
-        rp_draw(ctx, scene)
+        rp_draw(ctx, scene, params)
     })
     rp_canvas.style.cursor = 'pointer'
     rp_canvas.addEventListener('click', (e) => {
-        scene.rp_type = scene.rp_type === RP_TYPE_UNIFORM
+        params.rp_type.value = params.rp_type.value === RP_TYPE_UNIFORM
             ? RP_TYPE_CARDIOID
             : RP_TYPE_UNIFORM
-        rp_draw(ctx, scene)
+        rp_draw(ctx, scene, params)
     })
 
-    requestAnimationFrame(render.bind(null, gl, programInfo, scene))
+    requestAnimationFrame(render.bind(null, gl, programInfo, scene, params))
 }
 
-function render(gl, programInfo, scene) {
+function render(gl, programInfo, scene, params) {
     gl.uniform1f(programInfo.time, performance.now() / 1000)
     gl.uniform2f(programInfo.mouse, mouse.x / gl.canvas.width, mouse.y / gl.canvas.height)
-    gl.uniform1i(programInfo.n_sources, scene.n_sources)
-    gl.uniform1f(programInfo.attenuation, scene.attenuation)
-    gl.uniform1f(programInfo.phase_velocity, scene.phase_velocity)
-    gl.uniform1f(programInfo.phase_delay, scene.phase_delay)
-    gl.uniform1f(programInfo.power, scene.power)
-    gl.uniform1f(programInfo.frequency, scene.frequency)
-    gl.uniform1f(programInfo.rp_type, scene.rp_type)
-    gl.uniform1f(programInfo.k_noise, scene.k_noise)
-    gl.uniform1f(programInfo.k_alpha, scene.k_alpha)
+
+    for (const { location, value } of Object.values(params)) {
+        gl.uniform1f(location, value)
+    }
+
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
-    requestAnimationFrame(render.bind(null, gl, programInfo, scene))
+    requestAnimationFrame(render.bind(null, gl, programInfo, scene, params))
 }
-
-// document.addEventListener('readystatechange', (ev) => {
-//     if (document.readyState === 'interactive') {
-//         setup()
-//     }
-// })
 
 setup()
