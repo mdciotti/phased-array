@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phased Array</title>
+    <script src="phasedarray.js" type="module"></script>
+    <style>
+body {
+    background: black;
+    color: white;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-size: 14px;
+    margin: 0;
+    overflow: hidden;
+}
+#rp_canvas { position: fixed; top: 0; right: 0; opacity: 0.5; }
+#rp_canvas:hover { opacity: 1.0; }
+#options {
+    user-select: none;
+    background: rgba(0,0,0,0.25);
+    min-width: 240px;
+    max-width: 320px;
+    /* min-height: 400px; */
+    position: fixed;
+    backdrop-filter: blur(10px);
+    color: rgba(255,255,255,0.75);
+    transition-property: transform;
+    transition-duration: 200ms;
+    transition-timing-function: cubic-bezier(0.19, 1, 0.22, 1);
+}
+#options.hidden {
+    transform: translateY(calc(-100% + 32px));
+}
+#options:not(.hidden) #toggle_options::after {
+    content: 'hide';
+}
+#options.hidden #toggle_options::after {
+    content: 'show';
+}
+#toggle_options {
+    appearance: none;
+    background: none;
+    padding: 10px 20px;
+    color: inherit;
+    margin: 0;
+    display: block;
+    border: none;
+    font-size: 10px;
+    width: 100%;
+    letter-spacing: 2px;
+    height: 32px;
+}
+#toggle_options:hover {
+    color: white;
+    background: rgba(0, 0, 0, 0.5);
+}
+#options p {
+    padding: 10px 20px;
+}
+#options ul {
+    padding: 0;
+    margin: 0;
+}
+#options li {
+    list-style: none;
+    margin: 0;
+    padding: 10px 20px;
+    font-size: 12px;
+    font-family: 'Jetbrains Mono', 'Fira Mono', 'Courier New', Courier, monospace;
+    display: flex;
+}
+#options li:not(.open):hover {
+    color: rgba(255,255,255,1);
+    background: rgba(0, 0, 0, 0.5);
+}
+#options li label {
+    flex: 1 1 auto;
+}
+#options li input {
+    flex: 0 0 60px;
+    margin-left: 10px;
+}
+#options li canvas {
+    display: block;
+    border-radius: 4px;
+    position: relative;
+}
+#options li canvas::before {
+    content: '-1';
+    color: black;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+#options li canvas::after {
+    content: '1';
+    color: black;
+    position: absolute;
+    right: 0;
+    top: 0;
+}
+#options li.no_label {
+    display: block;
+}
+#options li:not(.open) ul {
+    display: none;
+}
+#options li.open ul {
+    display: block;
+    max-height: 200px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    /* padding: 10px 0; */
+    margin: -10px -20px;
+}
+#options li.open > canvas {
+    display: none;
+}
+#options li ul li {
+    padding: 10px 20px;
+}
+    </style>
+</head>
+<body>
+    <div id="options">
+        <p>Simulation of a phased array transmitter</p>
+        <ul>
+            <li>
+                <label for="n_sources">Emitters</label>
+                <input type="range" min="0" max="30" step="1" id="n_sources" />
+            </li>
+            <li>
+                <label for="attenuation">Attenuation</label>
+                <input type="range" min="0" max="1" step="0.01" id="attenuation" />
+            </li>
+            <li>
+                <label for="phase_velocity">Phase velocity</label>
+                <input type="range" min="1" max="1000" step="1" id="phase_velocity" />
+            </li>
+            <li>
+                <label for="phase_delay">Phase delay</label>
+                <input type="range" min="-0.5" max="0.5" step="0.001" id="phase_delay" />
+            </li>
+            <li>
+                <label for="power">Total power</label>
+                <input type="range" min="0" max="1000" step="1" id="power" />
+            </li>
+            <li>
+                <label for="frequency">Frequency</label>
+                <input type="range" min="1" max="10" step="1" id="frequency" />
+            </li>
+            <li>
+                <label for="k_noise">k_noise</label>
+                <input type="range" min="0" max="1" step="0.01" id="k_noise" />
+            </li>
+            <li>
+                <label for="k_alpha">k_alpha</label>
+                <input type="range" min="0.01" max="1" step="0.01" id="k_alpha" />
+            </li>
+            <li class="no_label">
+                <canvas id="ramp"></canvas>
+                <ul id="lut_list">
+                    <li><canvas data-colors="#0000ff,#000000,#ff0000"></canvas></li>
+                    <li><canvas data-colors="#e63946,#f1faee,#a8dadc,#457b9d,#1d3557"></canvas></li>
+                    <li><canvas data-colors="#8ecae6,#219ebc,#023047,#ffb703,#fb8500"></canvas></li>
+                    <li><canvas data-colors="#ffcdb2,#ffb4a2,#e5989b,#b5838d,#6d6875"></canvas></li>
+                    <li><canvas data-colors="#264653,#2a9d8f,#e9c46a,#f4a261,#e76f51"></canvas></li>
+                    <li><canvas data-colors="#75dddd,#508991,#172a3a,#004346,#09bc8a"></canvas></li>
+                    <li><canvas data-colors="#03045e,#023e8a,#0077b6,#0096c7,#00b4d8,#48cae4,#90e0ef,#ade8f4,#caf0f8"></canvas></li>
+                    <li><canvas data-colors="#f8f9fa,#e9ecef,#dee2e6,#ced4da,#adb5bd,#6c757d,#495057,#343a40,#212529"></canvas></li>
+                    <li><canvas data-colors="#b7094c,#a01a58,#892b64,#723c70,#5c4d7d,#455e89,#2e6f95,#1780a1,#0091ad"></canvas></li>
+                    <li><canvas data-colors="#f72585,#b5179e,#7209b7,#560bad,#480ca8,#3a0ca3,#3f37c9,#4361ee,#4895ef,#4cc9f0"></canvas></li>
+                    <li><canvas data-colors="#0466c8,#0353a4,#023e7d,#002855,#001845,#001233,#33415c,#5c677d,#7d8597,#979dac"></canvas></li>
+                    <li><canvas data-colors="#d9ed92,#b5e48c,#99d98c,#76c893,#52b69a,#34a0a4,#168aad,#1a759f,#1e6091,#184e77"></canvas></li>
+                </ul>
+            </li>
+            <button id="toggle_options" aria-label="toggle options visibility"></button>
+        </ul>
+    </div>
+</body>
+</html>
