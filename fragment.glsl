@@ -7,6 +7,7 @@ uniform float attenuation;
 uniform float phase_velocity;
 uniform float phase_delay;
 uniform float rp_type;
+uniform float rp_direction;
 uniform float power;
 uniform float frequency;
 uniform float k_noise;
@@ -17,9 +18,9 @@ out vec4 FragColor;
 
 const float pi = 2.0 * acos(0.0);
 
-float cardioid(vec2 delta, float direction) {
-    // return 1.0 + normalize(delta).y;
-    return 1.0 + sin(atan(delta.y, delta.x));
+float cardioid(vec2 delta) {
+    return 1.0 + normalize(delta).y;
+    // return 1.0 + sin(atan(delta.y, delta.x));
 }
 
 float wave_sample(vec2 coord) {
@@ -29,13 +30,16 @@ float wave_sample(vec2 coord) {
     float w = 2.0 * pi * frequency;
     float k = w / phase_velocity;
 
+    float s = rp_direction * 2.0 * pi;
+    mat2 rot = mat2(cos(s), sin(s), -sin(s), cos(s));
+
     for (float i = 0.0; i < n_sources; i += 1.0) {
         position = vec2((i - n_sources / 2.0) * 20.0, 0.0);
 
         vec2 delta = coord - position;
         float d = length(delta);
         float dt = d / phase_velocity;
-        float rp = 1.0 + rp_type * (cardioid(delta, 0.0) - 1.0);
+        float rp = 1.0 + rp_type * (cardioid(rot * delta) - 1.0);
         float sampled_power = power * rp / d;
         float phi = 2.0 * pi * i * phase_delay;
         sum += sampled_power * sin(k * d - w * time + phi);

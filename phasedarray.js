@@ -5,8 +5,8 @@ const RP_TYPE_UNIFORM = 0
 const RP_TYPE_CARDIOID = 1
 
 const RP = {
-    [RP_TYPE_UNIFORM]: (theta, dir) => 1,
-    [RP_TYPE_CARDIOID]: (theta, dir) => Math.cos(dir) * (1 + Math.sin(theta)) + Math.sin(dir) * (1 + Math.cos(theta)),
+    [RP_TYPE_UNIFORM]: (theta) => 1,
+    [RP_TYPE_CARDIOID]: (theta) => (1 + Math.sin(theta)),
 }
 
 /**
@@ -14,6 +14,7 @@ const RP = {
  * @param {CanvasRenderingContext2D} ctx 
  */
 function rp_draw(ctx, scene, params) {
+    ctx.save()
     const pattern = RP[params.rp_type.value]
     ctx.globalAlpha = 1
     ctx.fillRect(-50, -50, 100, 100)
@@ -40,17 +41,19 @@ function rp_draw(ctx, scene, params) {
     ctx.globalAlpha = scene.rp_hover ? 1 : 0.5
     ctx.lineWidth = 2
     ctx.beginPath()
-    ctx.moveTo(25 * pattern(0, params.rp_direction.value), 0)
+    ctx.rotate(params.rp_direction * 2 * PI)
+    ctx.moveTo(25 * pattern(0), 0)
 
     for (let i = 1; i < 72; ++i) {
         const theta = Math.PI * 2 * i / 72
-        const r = 25 * pattern(theta, params.rp_direction.value)
+        const r = 25 * pattern(theta)
         const x = r * Math.cos(theta)
         const y = r * Math.sin(theta)
         ctx.lineTo(x, y)
     }
     ctx.closePath()
     ctx.stroke()
+    ctx.restore()
 }
 
 async function setup() {
@@ -77,7 +80,7 @@ async function setup() {
 
     const ctx = rp_canvas.getContext('2d')
     ctx.translate(50, 50)
-    ctx.scale(1, -1)
+    ctx.scale(-1, -1)
 
     const scene = {
         lut_steps: 5,
@@ -336,13 +339,14 @@ async function setup() {
 
     rp_draw(ctx, scene, params)
 
-    // rp_canvas.addEventListener('wheel', (e) => {
-    //     // scene.rp_direction -= e.deltaY
-    //     scene.rp_direction = e.deltaY < 0
-    //         ? scene.rp_direction + Math.PI / 90
-    //         : scene.rp_direction - Math.PI / 90
-    //     rp_draw(ctx, scene)
-    // })
+    // Register event handlers for the radiation pattern canvas
+    rp_canvas.addEventListener('wheel', (e) => {
+        params.rp_direction.value = e.deltaY < 0
+            ? params.rp_direction.value + 0.01
+            : params.rp_direction.value - 0.01
+        rp_draw(ctx, scene, params)
+        update_url()
+    })
     rp_canvas.addEventListener('mouseenter', (e) => {
         scene.rp_hover = true
         rp_draw(ctx, scene, params)
