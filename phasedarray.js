@@ -4,14 +4,16 @@ const mouse = { x: 0, y: 0 }
 const RP_TYPE_UNIFORM = 0
 const RP_TYPE_CARDIOID = 1
 
+const { cos, sin, PI } = Math
+
 const RP = {
     [RP_TYPE_UNIFORM]: (theta) => 1,
     [RP_TYPE_CARDIOID]: (theta) => (1 + Math.sin(theta)),
 }
 
 /**
- * 
- * @param {CanvasRenderingContext2D} ctx 
+ * Draws the radiation pattern diagram onto the provided Canvas2D context.
+ * @param {CanvasRenderingContext2D} ctx
  */
 function rp_draw(ctx, scene, params) {
     ctx.save()
@@ -23,10 +25,10 @@ function rp_draw(ctx, scene, params) {
     ctx.globalAlpha = 0.25
     ctx.lineWidth = 1
     ctx.beginPath()
-    ctx.arc(0, 0, 12.5, 0, 2 * Math.PI, false)
-    ctx.arc(0, 0, 25, 0, 2 * Math.PI, false)
-    ctx.arc(0, 0, 37.5, 0, 2 * Math.PI, false)
-    ctx.arc(0, 0, 50, 0, 2 * Math.PI, false)
+    ctx.arc(0, 0, 12.5, 0, 2 * PI, false)
+    ctx.arc(0, 0, 25, 0, 2 * PI, false)
+    ctx.arc(0, 0, 37.5, 0, 2 * PI, false)
+    ctx.arc(0, 0, 50, 0, 2 * PI, false)
     ctx.moveTo(-50, 0)
     ctx.lineTo(50, 0)
     ctx.moveTo(0, -50)
@@ -42,14 +44,14 @@ function rp_draw(ctx, scene, params) {
     ctx.lineWidth = 2
     ctx.beginPath()
     ctx.rotate(params.rp_direction * 2 * PI)
-    ctx.moveTo(25 * pattern(0), 0)
+
+    const a = 25
+    ctx.moveTo(a * pattern(0), 0)
 
     for (let i = 1; i < 72; ++i) {
-        const theta = Math.PI * 2 * i / 72
-        const r = 25 * pattern(theta)
-        const x = r * Math.cos(theta)
-        const y = r * Math.sin(theta)
-        ctx.lineTo(x, y)
+        const theta = PI * 2 * i / 72
+        const r = a * pattern(theta)
+        ctx.lineTo(r * cos(theta), r * sin(theta))
     }
     ctx.closePath()
     ctx.stroke()
@@ -144,8 +146,9 @@ async function setup() {
         mouse: gl.getUniformLocation(program, 'mouse'),
     }
 
-    const lut_tex = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, lut_tex);
+    // Define the LUT
+    const lut_tex = gl.createTexture()
+    gl.bindTexture(gl.TEXTURE_2D, lut_tex)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
@@ -164,7 +167,7 @@ async function setup() {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, ramp_canvas)
     }
 
-
+    // Set up LUT list canvases, register click handler
     const $lut_list = document.getElementById('lut_list')
     for (const $li of $lut_list.children) {
         const $canvas = $li.getElementsByTagName('canvas')[0]
@@ -177,6 +180,9 @@ async function setup() {
         })
     }
 
+    /**
+     * Redraws all LUTs in the LUT list.
+     */
     function redraw_luts() {
         for (const $li of $lut_list.children) {
             const $canvas = $li.getElementsByTagName('canvas')[0]
@@ -188,8 +194,10 @@ async function setup() {
         }
     }
 
+    // Initial draw of all LUTs in LUT list
     redraw_luts()
 
+    // Handle redrawing all LUTs when the LUT steps value changes
     /** @type {HTMLInputElement} */
     const $lut_steps = document.getElementById('lut_steps')
     if ($lut_steps) {
@@ -250,17 +258,14 @@ async function setup() {
         gl.bufferData(gl.ARRAY_BUFFER, scene.bounds, gl.STATIC_DRAW)
     })
 
-    // canvas.addEventListener('wheel', (e) => {
-    //     scene.n_sources = e.deltaY < 0
-    //         ? Math.min(scene.n_sources + 1, 30)
-    //         : Math.max(scene.n_sources - 1, 0)
-    // })
-
     const $options = document.getElementById('options')
-    document.getElementById('toggle_options').addEventListener('click', () => {
-        $options.classList.toggle('hidden')
-    })
+    document.getElementById('toggle_options')
+        .addEventListener('click', () => $options.classList.toggle('hidden'))
 
+    /**
+     * Reference table to numeric parameters to be manipulated and passed to WebGL.
+     * @type {{[_:string]: number}}
+    */
     const params = {}
 
     const initial_url = new URL(window.location)
@@ -301,10 +306,14 @@ async function setup() {
         window.history.replaceState({}, '', url)
     }
 
+    /**
+     * Reference table to shader program locations.
+     * @type {{[_:string]: WebGLUniformLocation}}
+    */
     const locations = {}
 
     /**
-     * 
+     * Helper function to initialize a parameter.
      * @param {string} param_name 
      * @param {number} default_value 
      */
