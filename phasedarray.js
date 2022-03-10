@@ -346,6 +346,7 @@ async function setup() {
     create_param('k_alpha', 0.01)
     create_param('rp_type', RP_TYPE_CARDIOID)
     create_param('rp_direction', 0.0)
+    create_param('warp', 0.5)
     update_url()
 
     rp_draw(ctx, scene, params)
@@ -379,7 +380,7 @@ async function setup() {
 }
 
 function render(gl, programInfo, scene, locations, params) {
-    gl.uniform1f(programInfo.time, performance.now() / 1000)
+    gl.uniform1f(programInfo.time, params.warp * performance.now() / 1000)
     gl.uniform2f(programInfo.mouse, mouse.x / gl.canvas.width, mouse.y / gl.canvas.height)
 
     for (const [ param_name, location ] of Object.entries(locations)) {
