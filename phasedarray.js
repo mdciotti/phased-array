@@ -15,7 +15,7 @@ const RP = {
  */
 function rp_draw(ctx, scene, params) {
     ctx.save()
-    const pattern = RP[params.rp_type.value]
+    const pattern = RP[params.rp_type]
     ctx.globalAlpha = 1
     ctx.fillRect(-50, -50, 100, 100)
 
@@ -200,7 +200,7 @@ async function setup() {
             scene.lut_steps === 1 ? lut.draw(ramp_ctx) : lut.drawDiscrete(ramp_ctx, scene.lut_steps)
             redraw_luts()
             setColorLUT(ramp_canvas)
-            params['lut_steps'].value = scene.lut_steps
+            params['lut_steps'] = scene.lut_steps
             update_url()
         })
     }
@@ -270,13 +270,13 @@ async function setup() {
     for (const [key, value] of initial_url.searchParams.entries()) {
         if (key === 'lut') {
             const decoded = value.split('-').map(c => '#' + c).join(',')
-            params[key].value = decoded
+            params[key] = decoded
             ramp_canvas.dataset.colors = decoded
             console.log('lut', decoded)
             continue
         }
         console.log(key, +value)
-        params[key].value = +value
+        params[key] = +value
     }
 
     /**
@@ -286,12 +286,12 @@ async function setup() {
         const url = new URL(window.location)
         for (const [ key, param ] of Object.entries(params)) {
             if (key === 'lut') continue
-            switch (typeof param.value) {
+            switch (typeof param) {
                 case 'string':
-                    url.searchParams.set(key, param.value)
+                    url.searchParams.set(key, param)
                     break;
                 case 'number':
-                    url.searchParams.set(key, param.value.toFixed(2))
+                    url.searchParams.set(key, param.toFixed(2))
                     break;
             }
         }
@@ -301,50 +301,51 @@ async function setup() {
         window.history.replaceState({}, '', url)
     }
 
+    const locations = {}
+
     /**
      * 
      * @param {string} param_name 
-     * @param {*} gl_type 
-     * @param {number} value 
+     * @param {number} default_value 
      */
-    function create_param(param_name, gl_type, value) {
+    function create_param(param_name, default_value) {
         /** @type {HTMLInputElement} */
         const element = document.getElementById(param_name)
+
+        locations[param_name] = gl.getUniformLocation(program, param_name)
+        params[param_name] = params.hasOwnProperty(param_name)
+            ? params[param_name]
+            : default_value
+
         if (element) {
-            element.value = value.toString()
+            element.value = params[param_name].toString()
             element.addEventListener('input', () => {
-                params[param_name].value = +element.value
+                params[param_name] = +element.value
                 update_url()
             })
         }
-
-        params[param_name] = {
-            value,
-            location: gl.getUniformLocation(program, param_name),
-            element,
-            type: gl_type,
-        }
     }
 
-    create_param('n_sources', gl.uniform1i, 30)
-    create_param('attenuation', gl.uniform1f, 0)
-    create_param('phase_velocity', gl.uniform1f, 100)
-    create_param('phase_delay', gl.uniform1f, 0)
-    create_param('power', gl.uniform1f, 500)
-    create_param('frequency', gl.uniform1f, 2)
-    create_param('k_noise', gl.uniform1f, 0.04)
-    create_param('k_alpha', gl.uniform1f, 0.01)
-    create_param('rp_type', gl.uniform1f, RP_TYPE_CARDIOID)
-    create_param('rp_direction', gl.uniform1f, 0.0)
+    // Initialize all parameters
+    create_param('n_sources', 30)
+    // create_param('attenuation', 0)
+    create_param('phase_velocity', 100)
+    create_param('phase_delay', 0)
+    create_param('power', 500)
+    create_param('frequency', 2)
+    create_param('k_noise', 0.04)
+    create_param('k_alpha', 0.01)
+    create_param('rp_type', RP_TYPE_CARDIOID)
+    create_param('rp_direction', 0.0)
     update_url()
 
     rp_draw(ctx, scene, params)
 
     // Register event handlers for the radiation pattern canvas
     rp_canvas.addEventListener('wheel', (e) => {
-        params.rp_direction.value = e.deltaY < 0
-            ? params.rp_direction.value + 0.01
-            : params.rp_direction.value - 0.01
+        params.rp_direction = e.deltaY < 0
+            ? params.rp_direction + 0.01
+            : params.rp_direction - 0.01
         rp_draw(ctx, scene, params)
         update_url()
     })
@@ -358,27 +359,27 @@ async function setup() {
     })
     rp_canvas.style.cursor = 'pointer'
     rp_canvas.addEventListener('click', (e) => {
-        params.rp_type.value = params.rp_type.value === RP_TYPE_UNIFORM
+        params.rp_type = params.rp_type === RP_TYPE_UNIFORM
             ? RP_TYPE_CARDIOID
             : RP_TYPE_UNIFORM
         rp_draw(ctx, scene, params)
         update_url()
     })
 
-    requestAnimationFrame(render.bind(null, gl, programInfo, scene, params))
+    requestAnimationFrame(render.bind(null, gl, programInfo, scene, locations, params))
 }
 
-function render(gl, programInfo, scene, params) {
+function render(gl, programInfo, scene, locations, params) {
     gl.uniform1f(programInfo.time, performance.now() / 1000)
     gl.uniform2f(programInfo.mouse, mouse.x / gl.canvas.width, mouse.y / gl.canvas.height)
 
-    for (const { location, value } of Object.values(params)) {
-        gl.uniform1f(location, value)
+    for (const [ param_name, location ] of Object.entries(locations)) {
+        gl.uniform1f(location, params[param_name])
     }
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
-    requestAnimationFrame(render.bind(null, gl, programInfo, scene, params))
+    requestAnimationFrame(render.bind(null, gl, programInfo, scene, locations, params))
 }
 
 setup()
