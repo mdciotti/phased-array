@@ -214,6 +214,7 @@ async function setup() {
        -1.0, -1.0,
     ]), gl.STATIC_DRAW)
 
+    gl.viewport(0, 0, canvas.width, canvas.height)
     gl.clearColor(0.0, 0.0, 0.0, 1.0)
     gl.clear(gl.COLOR_BUFFER_BIT)
 
@@ -246,7 +247,7 @@ async function setup() {
         canvas.width = window.innerWidth
         canvas.height = window.innerHeight
         setBounds(canvas.width, canvas.height)
-        // console.log(scene.bounds)
+        gl.viewport(0, 0, canvas.width, canvas.height)
         gl.bindBuffer(gl.ARRAY_BUFFER, tb)
         gl.bufferData(gl.ARRAY_BUFFER, scene.bounds, gl.STATIC_DRAW)
     })
