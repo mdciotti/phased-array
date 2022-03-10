@@ -171,6 +171,7 @@ async function setup() {
             const lut = new LUT($canvas.dataset.colors.split(','))
             scene.lut_steps === 1 ? lut.draw(ramp_ctx) : lut.drawDiscrete(ramp_ctx, scene.lut_steps)
             ramp_canvas.dataset.colors = $canvas.dataset.colors
+            update_url(params)
         })
     }
 
@@ -196,6 +197,8 @@ async function setup() {
             scene.lut_steps === 1 ? lut.draw(ramp_ctx) : lut.drawDiscrete(ramp_ctx, scene.lut_steps)
             redraw_luts()
             setColorLUT(ramp_canvas)
+            params['lut_steps'].value = scene.lut_steps
+            update_url()
         })
     }
 
@@ -258,6 +261,42 @@ async function setup() {
 
     const params = {}
 
+    const initial_url = new URL(window.location)
+    console.log('initial params:')
+    for (const [key, value] of initial_url.searchParams.entries()) {
+        if (key === 'lut') {
+            const decoded = value.split('-').map(c => '#' + c).join(',')
+            params[key].value = decoded
+            ramp_canvas.dataset.colors = decoded
+            console.log('lut', decoded)
+            continue
+        }
+        console.log(key, +value)
+        params[key].value = +value
+    }
+
+    /**
+     * Sets the active URL to reflect the parameter values.
+     */
+    function update_url() {
+        const url = new URL(window.location)
+        for (const [ key, param ] of Object.entries(params)) {
+            if (key === 'lut') continue
+            switch (typeof param.value) {
+                case 'string':
+                    url.searchParams.set(key, param.value)
+                    break;
+                case 'number':
+                    url.searchParams.set(key, param.value.toFixed(2))
+                    break;
+            }
+        }
+
+        const lut_encoded = ramp_canvas.dataset.colors.replaceAll(',', '-').replaceAll('#', '')
+        url.searchParams.set('lut', lut_encoded)
+        window.history.replaceState({}, '', url)
+    }
+
     /**
      * 
      * @param {string} param_name 
@@ -269,7 +308,10 @@ async function setup() {
         const element = document.getElementById(param_name)
         if (element) {
             element.value = value.toString()
-            element.addEventListener('input', () => params[param_name].value = +element.value)
+            element.addEventListener('input', () => {
+                params[param_name].value = +element.value
+                update_url()
+            })
         }
 
         params[param_name] = {
@@ -290,6 +332,7 @@ async function setup() {
     create_param('k_alpha', gl.uniform1f, 0.01)
     create_param('rp_type', gl.uniform1f, RP_TYPE_CARDIOID)
     create_param('rp_direction', gl.uniform1f, 0.0)
+    update_url()
 
     rp_draw(ctx, scene, params)
 
@@ -314,6 +357,7 @@ async function setup() {
             ? RP_TYPE_CARDIOID
             : RP_TYPE_UNIFORM
         rp_draw(ctx, scene, params)
+        update_url()
     })
 
     requestAnimationFrame(render.bind(null, gl, programInfo, scene, params))
