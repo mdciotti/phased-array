@@ -152,17 +152,18 @@ async function setup() {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
 
     /**
-     * Sets the active color LUT.
-     * @param {HTMLCanvasElement} lut
+     * Sets, redraws, and binds the active color LUT to WebGL.
      */
-    const setColorLUT = (lut_canvas) => {
-        gl.bindTexture(gl.TEXTURE_2D, lut_tex);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, lut_canvas)
+    function update_lut() {
+        const ramp_ctx = ramp_canvas.getContext('2d')
+        const lut = new LUT(ramp_canvas.dataset.colors.split(','))
+        scene.lut_steps === 1
+            ? lut.draw(ramp_ctx)
+            : lut.drawDiscrete(ramp_ctx, scene.lut_steps)
+        gl.bindTexture(gl.TEXTURE_2D, lut_tex)
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, ramp_canvas)
     }
 
-    const ramp_ctx = ramp_canvas.getContext('2d')
-    const lut1 = new LUT(ramp_canvas.dataset.colors.split(','))
-    scene.lut_steps === 1 ? lut1.draw(ramp_ctx) : lut1.drawDiscrete(ramp_ctx, scene.lut_steps)
 
     const $lut_list = document.getElementById('lut_list')
     for (const $li of $lut_list.children) {
@@ -170,10 +171,8 @@ async function setup() {
         $canvas.width = 256
         $canvas.height = 20
         $canvas.parentElement.addEventListener('click', () => {
-            setColorLUT($canvas)
-            const lut = new LUT($canvas.dataset.colors.split(','))
-            scene.lut_steps === 1 ? lut.draw(ramp_ctx) : lut.drawDiscrete(ramp_ctx, scene.lut_steps)
             ramp_canvas.dataset.colors = $canvas.dataset.colors
+            update_lut()
             update_url(params)
         })
     }
@@ -183,12 +182,13 @@ async function setup() {
             const $canvas = $li.getElementsByTagName('canvas')[0]
             const lut_ctx = $canvas.getContext('2d')
             const lut = new LUT($canvas.dataset.colors.split(','))
-            scene.lut_steps === 1 ? lut.draw(lut_ctx) : lut.drawDiscrete(lut_ctx, scene.lut_steps)
+            scene.lut_steps === 1
+                ? lut.draw(lut_ctx)
+                : lut.drawDiscrete(lut_ctx, scene.lut_steps)
         }
     }
 
     redraw_luts()
-    setColorLUT(ramp_canvas)
 
     /** @type {HTMLInputElement} */
     const $lut_steps = document.getElementById('lut_steps')
@@ -196,10 +196,8 @@ async function setup() {
         $lut_steps.value = scene.lut_steps.toString()
         $lut_steps.addEventListener('input', () => {
             scene.lut_steps = +$lut_steps.value
-            const lut = new LUT(ramp_canvas.dataset.colors.split(','))
-            scene.lut_steps === 1 ? lut.draw(ramp_ctx) : lut.drawDiscrete(ramp_ctx, scene.lut_steps)
             redraw_luts()
-            setColorLUT(ramp_canvas)
+            update_lut()
             params['lut_steps'] = scene.lut_steps
             update_url()
         })
@@ -278,6 +276,8 @@ async function setup() {
         console.log(key, +value)
         params[key] = +value
     }
+
+    update_lut()
 
     /**
      * Sets the active URL to reflect the parameter values.
